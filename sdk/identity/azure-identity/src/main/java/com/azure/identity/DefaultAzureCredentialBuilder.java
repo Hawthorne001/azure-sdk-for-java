@@ -17,7 +17,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ForkJoinPool;
 
 /**
  * <p>Fluent credential builder for instantiating {@link DefaultAzureCredential}.</p>
@@ -60,9 +59,8 @@ public class DefaultAzureCredentialBuilder extends CredentialBuilderBase<Default
     private String managedIdentityClientId;
     private String workloadIdentityClientId;
     private String managedIdentityResourceId;
-    private List<String> additionallyAllowedTenants = IdentityUtil
-        .getAdditionalTenantsFromEnvironment(Configuration.getGlobalConfiguration().clone());
-
+    private List<String> additionallyAllowedTenants
+        = IdentityUtil.getAdditionalTenantsFromEnvironment(Configuration.getGlobalConfiguration().clone());
 
     /**
      * Creates an instance of a DefaultAzureCredentialBuilder.
@@ -85,7 +83,6 @@ public class DefaultAzureCredentialBuilder extends CredentialBuilderBase<Default
         return this;
     }
 
-
     /**
      * Specifies the Microsoft Entra endpoint to acquire tokens.
      * @param authorityHost the Microsoft Entra endpoint
@@ -95,7 +92,6 @@ public class DefaultAzureCredentialBuilder extends CredentialBuilderBase<Default
         this.identityClientOptions.setAuthorityHost(authorityHost);
         return this;
     }
-
 
     /**
      * Specifies the KeePass database path to read the cached credentials of Azure toolkit for IntelliJ plugin.
@@ -116,7 +112,7 @@ public class DefaultAzureCredentialBuilder extends CredentialBuilderBase<Default
         if (CoreUtils.isNullOrEmpty(databasePath)) {
             throw LOGGER.logExceptionAsError(
                 new IllegalArgumentException("The KeePass database path is either empty or not configured."
-                                                   + " Please configure it on the builder."));
+                    + " Please configure it on the builder."));
         }
         this.identityClientOptions.setIntelliJKeePassDatabasePath(databasePath);
         return this;
@@ -173,9 +169,9 @@ public class DefaultAzureCredentialBuilder extends CredentialBuilderBase<Default
      * Developer is responsible for maintaining the lifecycle of the ExecutorService.
      *
      * <p>
-     * If this is not configured, the {@link ForkJoinPool#commonPool() common fork join pool} will be used which is
-     * also shared with other application tasks. If the common pool is heavily used for other tasks, authentication
-     * requests might starve and setting up this executor service should be considered.
+     * If this is not configured, the {@link com.azure.core.util.SharedExecutorService} will be used which is
+     * also shared with other SDK libraries. If there are many concurrent SDK tasks occurring, authentication
+     * requests might starve and configuring a separate executor service should be considered.
      * </p>
      *
      * <p> The executor service and can be safely shutdown if the TokenCredential is no longer being used by the
@@ -198,7 +194,8 @@ public class DefaultAzureCredentialBuilder extends CredentialBuilderBase<Default
      */
     @SuppressWarnings("unchecked")
     public DefaultAzureCredentialBuilder additionallyAllowedTenants(String... additionallyAllowedTenants) {
-        this.additionallyAllowedTenants = IdentityUtil.resolveAdditionalTenants(Arrays.asList(additionallyAllowedTenants));
+        this.additionallyAllowedTenants
+            = IdentityUtil.resolveAdditionalTenants(Arrays.asList(additionallyAllowedTenants));
         return this;
     }
 
@@ -252,8 +249,8 @@ public class DefaultAzureCredentialBuilder extends CredentialBuilderBase<Default
         loadFallbackValuesFromEnvironment();
 
         if (managedIdentityClientId != null && managedIdentityResourceId != null) {
-            throw LOGGER.logExceptionAsError(
-                new IllegalStateException("Only one of managedIdentityClientId and managedIdentityResourceId can be specified."));
+            throw LOGGER.logExceptionAsError(new IllegalStateException(
+                "Only one of managedIdentityClientId and managedIdentityResourceId can be specified."));
         }
 
         if (!CoreUtils.isNullOrEmpty(additionallyAllowedTenants)) {
@@ -264,18 +261,23 @@ public class DefaultAzureCredentialBuilder extends CredentialBuilderBase<Default
 
     private void loadFallbackValuesFromEnvironment() {
         Configuration configuration = identityClientOptions.getConfiguration() == null
-            ? Configuration.getGlobalConfiguration().clone() : identityClientOptions.getConfiguration();
-        tenantId = CoreUtils.isNullOrEmpty(tenantId) ? configuration.get(Configuration.PROPERTY_AZURE_TENANT_ID) : tenantId;
-        managedIdentityClientId = CoreUtils.isNullOrEmpty(managedIdentityClientId) ? configuration.get(Configuration.PROPERTY_AZURE_CLIENT_ID) : managedIdentityClientId;
+            ? Configuration.getGlobalConfiguration().clone()
+            : identityClientOptions.getConfiguration();
+        tenantId
+            = CoreUtils.isNullOrEmpty(tenantId) ? configuration.get(Configuration.PROPERTY_AZURE_TENANT_ID) : tenantId;
+        managedIdentityClientId = CoreUtils.isNullOrEmpty(managedIdentityClientId)
+            ? configuration.get(Configuration.PROPERTY_AZURE_CLIENT_ID)
+            : managedIdentityClientId;
     }
 
     private ArrayList<TokenCredential> getCredentialsChain() {
         ArrayList<TokenCredential> output = new ArrayList<TokenCredential>(8);
         output.add(new EnvironmentCredential(identityClientOptions.clone()));
         output.add(getWorkloadIdentityCredential());
-        output.add(new ManagedIdentityCredential(managedIdentityClientId, managedIdentityResourceId, null, identityClientOptions.clone()));
-        output.add(new SharedTokenCacheCredential(null, IdentityConstants.DEVELOPER_SINGLE_SIGN_ON_ID,
-            tenantId, identityClientOptions.clone()));
+        output.add(new ManagedIdentityCredential(managedIdentityClientId, managedIdentityResourceId, null,
+            identityClientOptions.clone()));
+        output.add(new SharedTokenCacheCredential(null, IdentityConstants.DEVELOPER_SINGLE_SIGN_ON_ID, tenantId,
+            identityClientOptions.clone()));
         output.add(new IntelliJCredential(tenantId, identityClientOptions.clone()));
         output.add(new AzureCliCredential(tenantId, identityClientOptions.clone()));
         output.add(new AzurePowerShellCredential(tenantId, identityClientOptions.clone()));
@@ -285,16 +287,16 @@ public class DefaultAzureCredentialBuilder extends CredentialBuilderBase<Default
 
     private WorkloadIdentityCredential getWorkloadIdentityCredential() {
         Configuration configuration = identityClientOptions.getConfiguration() == null
-            ? Configuration.getGlobalConfiguration().clone() : identityClientOptions.getConfiguration();
+            ? Configuration.getGlobalConfiguration().clone()
+            : identityClientOptions.getConfiguration();
 
         String azureAuthorityHost = configuration.get(Configuration.PROPERTY_AZURE_AUTHORITY_HOST);
-        String clientId = CoreUtils.isNullOrEmpty(workloadIdentityClientId)
-            ? managedIdentityClientId : workloadIdentityClientId;
+        String clientId
+            = CoreUtils.isNullOrEmpty(workloadIdentityClientId) ? managedIdentityClientId : workloadIdentityClientId;
 
         if (!CoreUtils.isNullOrEmpty(azureAuthorityHost)) {
             identityClientOptions.setAuthorityHost(azureAuthorityHost);
         }
-        return new WorkloadIdentityCredential(tenantId, clientId, null,
-                identityClientOptions.clone());
+        return new WorkloadIdentityCredential(tenantId, clientId, null, identityClientOptions.clone());
     }
 }
